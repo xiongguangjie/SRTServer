@@ -1,14 +1,14 @@
 ﻿#ifndef ZLMEDIAKIT_SRT_PACKET_H
 #define ZLMEDIAKIT_SRT_PACKET_H
 
-#include "Common/macros.h"
 #include <stdint.h>
 #include <vector>
+
+#include "Network/Buffer.h"
+
 namespace SRT {
 
-#if defined(_WIN32)
-#pragma pack(push, 1)
-#endif // defined(_WIN32)
+using namespace toolkit;
 
 /*
  0                   1                   2                   3
@@ -29,31 +29,23 @@ namespace SRT {
             Figure 3: Data packet structure
             reference https://haivision.github.io/srt-rfc/draft-sharabayko-srt.html#name-packet-structure
 */
-class DataPacketHeader {
+class DataPacket {
 public:
-#if __BYTE_ORDER == __BIG_ENDIAN
-    uint32_t f : 1;
-    uint32_t packet_seq_number : 31;
-    uint32_t PP : 2;
-    uint32_t O : 1;
-    uint32_t KK : 2;
-    uint32_t R : 1;
-    uint32_t msg_number : 26;
-    uint32_t timestamp;
-    uint32_t dst_socket_id;
-#else
-    uint32_t packet_seq_number : 31;
-    uint32_t f : 1;
-    uint32_t msg_number : 26;
-    uint32_t R : 1;
-    uint32_t KK : 2;
-    uint32_t O : 1;
-    uint32_t PP : 2;
-    uint32_t timestamp;
-    uint32_t dst_socket_id;
-#endif
+    static const size_t HEADER_SIZE = 16;
+    static bool IsDataPacket(uint8_t* buf,size_t len);
+    bool loadFromData(uint8_t* buf,size_t len);
 
-} PACKED;
+    uint32_t f : 1;
+    uint32_t packet_seq_number : 31;
+    uint32_t PP : 2;
+    uint32_t O : 1;
+    uint32_t KK : 2;
+    uint32_t R : 1;
+    uint32_t msg_number : 26;
+    uint32_t timestamp;
+    uint32_t dst_socket_id;
+    BufferRaw::Ptr data;
+};
 /*
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1

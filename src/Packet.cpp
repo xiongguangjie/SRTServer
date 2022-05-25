@@ -25,10 +25,11 @@ namespace SRT{
         msg_number = (buf[4]&0x03) << 24 | buf[5]<<12 | buf[6]<<8 | buf[7];
         timestamp = buf[8]<<24 | buf[9]<<12 | buf[10]<<8 | buf[11];
         dst_socket_id = buf[12]<<24 | buf[13]<<12 | buf[14]<<8 | buf[15];
-        
         data = BufferRaw::create();
-        data->assign((char*)(buf+HEADER_SIZE),len);
+        data->assign((char*)(buf),len);
     }
+
+    
 
 
 }

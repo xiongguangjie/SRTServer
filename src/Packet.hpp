@@ -34,7 +34,7 @@ public:
     static const size_t HEADER_SIZE = 16;
     static bool IsDataPacket(uint8_t* buf,size_t len);
     bool loadFromData(uint8_t* buf,size_t len);
-
+    
     uint32_t f : 1;
     uint32_t packet_seq_number : 31;
     uint32_t PP : 2;
@@ -44,7 +44,7 @@ public:
     uint32_t msg_number : 26;
     uint32_t timestamp;
     uint32_t dst_socket_id;
-    BufferRaw::Ptr data;
+    Buffer::Ptr data;
 };
 /*
  0                   1                   2                   3

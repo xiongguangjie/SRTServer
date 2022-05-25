@@ -1,4 +1,5 @@
-﻿#include <iostream>
+﻿#include <signal.h>
+#include <iostream>
 #include "Network/UdpServer.h"
 #include "Poller/EventPoller.h"
 #include "SrtSession.hpp"
@@ -34,6 +35,15 @@ int main(int argc,char *argv[]) {
             sleep(1);
             return -1;
         }
+
+              //设置退出信号处理函数
+        static semaphore sem;
+        signal(SIGINT, [](int) {
+            InfoL << "SIGINT:exit";
+            signal(SIGINT, SIG_IGN);// 设置退出信号
+            sem.post();
+        });// 设置退出信号
+        sem.wait();
 
 
 }

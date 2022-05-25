@@ -19,14 +19,14 @@ int main(int argc,char *argv[]) {
             }
             auto new_poller = SrtSession::queryPoller(buf);
             if (!new_poller) {
-                //该数据对应的webrtc对象未找到，丢弃之
+                //该数据对应的srt对象未找到，丢弃之
                 return Socket::Ptr();
             }
             return Socket::createSocket(new_poller, false);
         });
 
           try {
-            //webrtc udp服务器
+            //srt udp服务器
             rtcSrv->start<SrtSession>(8080);
 
         } catch (std::exception &ex) {

@@ -2,7 +2,9 @@
 #define ZLMEDIAKIT_SRT_SESSION_H
 
 #include "Network/Session.h"
-namespace SRT{
+#include "SrtTransport.hpp"
+
+namespace SRT {
 
 using namespace toolkit;
 
@@ -23,7 +25,9 @@ private:
     bool _find_transport = true;
     Ticker _ticker;
     struct sockaddr_storage _peer_addr;
+    SrtTransport::Ptr _transport;
+
 };
 
-}
-#endif ZLMEDIAKIT_SRT_SESSION_H
+} // namespace SRT
+#endif //ZLMEDIAKIT_SRT_SESSION_H

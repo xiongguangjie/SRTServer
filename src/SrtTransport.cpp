@@ -16,16 +16,12 @@ void SrtTransport::setSession(Session::Ptr session) {
     if (_selected_session) {
         InfoL << "srt network changed: " << _selected_session->get_peer_ip() << ":"
               << _selected_session->get_peer_port() << " -> " << session->get_peer_ip() << ":"
-              << session->get_peer_port() << ", id:" << getIdentifier();
+              << session->get_peer_port() << ", id:" << _selected_session->getIdentifier();
     }
     _selected_session = session;
 }
 const Session::Ptr &SrtTransport::getSession() const {
     return _selected_session;
-}
-
-const std::string &SrtTransport::getIdentifier() const {
-    return _identifier;
 }
 
 void SrtTransport::inputSockData(uint8_t *buf, int len, struct sockaddr_storage *addr) {
@@ -63,7 +59,22 @@ void SrtTransport::inputSockData(uint8_t *buf, int len, struct sockaddr_storage 
     }
 }
 void SrtTransport::handleHandshake(uint8_t *buf, int len, struct sockaddr_storage *addr){
+    HandshakePacket pkt;
+    assert(pkt.loadFromData(buf,len));
 
+    if(pkt.version == 4 && pkt.handshake_type == HandshakePacket::HANDSHAKE_TYPE_INDUCTION){
+        // Induction Phase
+        TraceL<<getIdentifier() <<" Induction Phase ";
+        if(_peer_socket_id != 0){
+            TraceL<<getIdentifier()<<" Induction handle repeate ";
+            // handle repeate ignore
+            return;
+        }
+        _peer_socket_id = pkt.srt_socket_id;
+        HandshakePacket response;
+    }else{
+        // 
+    }
 }
 void SrtTransport::handleKeeplive(uint8_t *buf, int len, struct sockaddr_storage *addr){
 
@@ -93,6 +104,10 @@ void SrtTransport::handleACKACK(uint8_t *buf, int len, struct sockaddr_storage *
 
 void SrtTransport::handlePeerError(uint8_t *buf, int len, struct sockaddr_storage *addr){
 
+}
+
+std::string SrtTransport::getIdentifier(){
+    return _selected_session ? _selected_session->getIdentifier() : "";
 }
 ////////////  SrtTransportManager //////////////////////////
 SrtTransportManager &SrtTransportManager::Instance() {

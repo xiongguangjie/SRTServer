@@ -91,13 +91,17 @@ void SrtSession::onRecv(const Buffer::Ptr &buffer) {
             }
         }
 
+        if(_transport){
+            _transport->setSession(shared_from_this());
+        }
         InfoP(this);
     }
     _ticker.resetTime();
-    // TODO 解析srt的包并且处理
 
     if(_transport){
         _transport->inputSockData(data,size,&_peer_addr);
+    }else{
+        WarnL<< "ingore  data";
     }
 }
 
@@ -111,13 +115,9 @@ void SrtSession::onError(const SockException &err) {
 void SrtSession::onManager() {
 
     if (_ticker.elapsedTime() > 5 * 1000) {
-        shutdown(SockException(Err_timeout, "webrtc connection timeout"));
+        shutdown(SockException(Err_timeout, "srt connection timeout"));
         return;
     }
-}
-
-std::string SrtSession::getIdentifier() const {
-    return _identifier;
 }
 
 } // namespace SRT

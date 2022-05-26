@@ -16,8 +16,6 @@ public:
     const EventPoller::Ptr &getPoller() const;
     void setSession(Session::Ptr session);
     const Session::Ptr &getSession() const;
-
-    const std::string &getIdentifier() const;
     /**
      * socket收到udp数据
      * @param buf 数据指针
@@ -25,6 +23,8 @@ public:
      * @param addr 数据来源地址
      */
     void inputSockData(uint8_t *buf, int len, struct sockaddr_storage *addr);
+
+    std::string getIdentifier();
 private:
     void handleHandshake(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleKeeplive(uint8_t *buf, int len, struct sockaddr_storage *addr);
@@ -40,7 +40,9 @@ private:
     //当前选中的udp链接
     Session::Ptr _selected_session;
     EventPoller::Ptr _poller;
-    std::string _identifier;
+
+    uint32_t _peer_socket_id;
+
 };
 
 class SrtTransportManager {

@@ -8,6 +8,9 @@ namespace SRT {
 SrtTransport::SrtTransport(const EventPoller::Ptr &poller)
     : _poller(poller) {}
 
+SrtTransport::~SrtTransport(){
+    TraceL<<" ";
+}
 const EventPoller::Ptr &SrtTransport::getPoller() const {
     return _poller;
 }

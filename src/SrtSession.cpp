@@ -110,6 +110,16 @@ void SrtSession::onError(const SockException &err) {
     //在udp链接迁移时，新的SrtSession对象将接管SrtSession对象的生命周期
     //本SrtSession对象将在超时后自动销毁
     WarnP(this) << err.what();
+
+    if (!_transport) {
+        return;
+    }
+    
+    // 防止互相引用导致不释放
+    auto transport = std::move(_transport);
+    getPoller()->async([transport] {
+        //延时减引用，防止使用transport对象时，销毁对象
+    }, false);
 }
 
 void SrtSession::onManager() {

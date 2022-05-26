@@ -12,7 +12,7 @@ public:
     using Ptr = std::shared_ptr<SrtTransport>;
 
     SrtTransport(const EventPoller::Ptr &poller);
-    virtual ~SrtTransport() = default;
+    virtual ~SrtTransport();
     const EventPoller::Ptr &getPoller() const;
     void setSession(Session::Ptr session);
     const Session::Ptr &getSession() const;

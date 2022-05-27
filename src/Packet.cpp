@@ -1,7 +1,14 @@
-﻿#include <atomic>
+﻿
+#include "sys/socket.h"
+#include "netdb.h"
+
+#include <atomic>
+#include "Util/logger.h"
+#include "Util/MD5.h"
 
 #include "Packet.hpp"
-#include "Util/logger.h"
+
+
 
 namespace SRT {
 
@@ -253,7 +260,12 @@ bool HandshakePacket::loadFromData(uint8_t *buf, size_t len) {
 
 bool HandshakePacket::storeToData() {
     _data = BufferRaw::create();
+    _data->setCapacity(HEADER_SIZE + 48);
     _data->setSize(HEADER_SIZE + 48);
+
+    control_type = ControlPacket::HANDSHAKE;
+    sub_type = 0;
+
     ControlPacket::storeToHeader();
 
     uint8_t *ptr = (uint8_t *)_data->data() + HEADER_SIZE;
@@ -318,9 +330,44 @@ uint32_t HandshakePacket::getSynCookie(uint8_t *buf, size_t len){
     return loadUint32(ptr);
 }
 
-uint32_t HandshakePacket::generateSynCookie(struct sockaddr_storage* addr){
-    static std::atomic<uint32_t> syn_cookie;
-    return syn_cookie.fetch_add(1);
+uint32_t HandshakePacket::generateSynCookie(struct sockaddr_storage* addr,TimePoint ts,uint32_t current_cookie, int correction ){
+
+    static std::atomic<uint32_t> distractor{0};
+    uint32_t    rollover   = distractor.load() + 10;
+
+    for (;;)
+    {
+        // SYN cookie
+        char clienthost[NI_MAXHOST];
+        char clientport[NI_MAXSERV];
+        getnameinfo((struct sockaddr*)addr,
+                    sizeof(struct sockaddr_storage),
+                    clienthost,
+                    sizeof(clienthost),
+                    clientport,
+                    sizeof(clientport),
+                    NI_NUMERICHOST | NI_NUMERICSERV);
+        int64_t timestamp = (DurationCountMicroseconds(SteadyClock::now() - ts) / 60000000) + distractor.load() +
+                            correction; // secret changes every one minute
+        std::stringstream cookiestr;
+        cookiestr << clienthost << ":" << clientport << ":" << timestamp;
+        union {
+            unsigned char cookie[16];
+            uint32_t       cookie_val;
+        };
+        MD5 md5(cookiestr.str());
+        memcpy(cookie,md5.rawdigest().c_str(),16);
+
+        if (cookie_val != current_cookie)
+            return cookie_val;
+
+        ++distractor;
+
+        // This is just to make the loop formally breakable,
+        // but this is virtually impossible to happen.
+        if (distractor == rollover)
+            return cookie_val;
+    }
 }
 
 } // namespace SRT

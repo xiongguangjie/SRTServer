@@ -3,10 +3,13 @@
 #include "SrtTransport.hpp"
 #include "Packet.hpp"
 namespace SRT {
-
+static std::atomic<uint32_t> s_srt_socket_id_generate{125};
 ////////////  SrtTransport //////////////////////////
 SrtTransport::SrtTransport(const EventPoller::Ptr &poller)
-    : _poller(poller) {}
+    : _poller(poller) {
+        _start_timestamp = SteadyClock::now();
+        _socket_id = s_srt_socket_id_generate.fetch_add(1);
+    }
 
 SrtTransport::~SrtTransport(){
     TraceL<<" ";
@@ -74,9 +77,21 @@ void SrtTransport::handleHandshake(uint8_t *buf, int len, struct sockaddr_storag
             return;
         }
         _peer_socket_id = pkt.srt_socket_id;
-        HandshakePacket response;
-    }else{
-        // 
+        
+        HandshakePacket::Ptr res = std::make_shared<HandshakePacket>();
+        res->dst_socket_id = _peer_socket_id;
+        res->timestamp = 0;
+        res->version = 5;
+        res->extension_field = 0x4A17;
+        res->handshake_type = HandshakePacket::HANDSHAKE_TYPE_INDUCTION;
+        res->srt_socket_id = _socket_id;
+        res->syn_cookie = HandshakePacket::generateSynCookie(addr,_start_timestamp);
+
+        sendControlPacket(res,true);
+
+    }else if(pkt.version == 5 && pkt.handshake_type == HandshakePacket::HANDSHAKE_TYPE_CONCLUSION){
+        // CONCLUSION Phase
+        TraceL<<getIdentifier() <<" CONCLUSION Phase ";
     }
 }
 void SrtTransport::handleKeeplive(uint8_t *buf, int len, struct sockaddr_storage *addr){
@@ -109,6 +124,22 @@ void SrtTransport::handlePeerError(uint8_t *buf, int len, struct sockaddr_storag
 
 }
 
+void SrtTransport::sendDataPacket(DataPacket::Ptr pkt,char* buf,int len, bool flush) { 
+    pkt->storeToData((uint8_t*)buf,len);
+    sendPacket(pkt,flush);
+}
+void SrtTransport::sendControlPacket(ControlPacket::Ptr pkt, bool flush) { 
+    pkt->storeToData();
+    sendPacket(pkt,flush);
+}
+void SrtTransport::sendPacket(Buffer::Ptr pkt,bool flush){
+    if(_selected_session){
+         _selected_session->setSendFlushFlag(flush);
+         _selected_session->send(std::move(pkt));
+    }else{
+        WarnL<<"not reach this";
+    }
+}
 std::string SrtTransport::getIdentifier(){
     return _selected_session ? _selected_session->getIdentifier() : "";
 }

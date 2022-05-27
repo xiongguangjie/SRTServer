@@ -6,10 +6,11 @@
 
 #include "Network/Buffer.h"
 
+#include "Common.h"
+
 namespace SRT {
 
 using namespace toolkit;
-
 /*
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -181,7 +182,7 @@ public:
     static bool isHandshakePacket(uint8_t *buf, size_t len);
     static uint32_t getHandshakeType(uint8_t *buf, size_t len);
     static uint32_t getSynCookie(uint8_t *buf, size_t len);
-    static uint32_t generateSynCookie(struct sockaddr_storage* addr);
+    static uint32_t generateSynCookie(struct sockaddr_storage* addr,TimePoint ts,uint32_t current_cookie = 0, int correction = 0);
 
     ///////ControlPacket override///////
     bool loadFromData(uint8_t *buf, size_t len) override;

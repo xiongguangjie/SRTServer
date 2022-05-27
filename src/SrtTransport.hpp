@@ -2,11 +2,17 @@
 #define ZLMEDIAKIT_SRT_TRANSPORT_H
 
 #include <mutex>
+#include <chrono>
 
 #include "Network/Session.h"
 #include "Poller/EventPoller.h"
+
+#include "Common.h"
+#include "Packet.hpp"
+
 namespace SRT {
 using namespace toolkit;
+
 class SrtTransport {
 public:
     using Ptr = std::shared_ptr<SrtTransport>;
@@ -36,12 +42,19 @@ private:
     void handleDropReq(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleUserDefinedType(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handlePeerError(uint8_t *buf, int len, struct sockaddr_storage *addr);
+protected:
+    void sendDataPacket(DataPacket::Ptr pkt,char* buf,int len,bool flush = false);
+    void sendControlPacket(ControlPacket::Ptr pkt,bool  flush = true);
+    void sendPacket(Buffer::Ptr pkt,bool flush =  true);
 private:
     //当前选中的udp链接
     Session::Ptr _selected_session;
     EventPoller::Ptr _poller;
 
     uint32_t _peer_socket_id;
+    uint32_t _socket_id;
+
+    TimePoint _start_timestamp;
 
 };
 

@@ -7,6 +7,7 @@
 #include "Network/Buffer.h"
 
 #include "Common.h"
+#include "HSExt.h"
 
 namespace SRT {
 
@@ -166,16 +167,19 @@ class HandshakePacket : public ControlPacket {
 public:
     using Ptr = std::shared_ptr<HandshakePacket>;
     enum { NO_ENCRYPTION = 0, AES_128 = 1, AES_196 = 2, AES_256 = 3 };
-
+     static const size_t HS_CONTENT_MIN_SIZE = 48;
     enum {
-        HANDSHAKE_TYPE_DONE = 0xFFFFFFFD,
-        HANDSHAKE_TYPE_AGREEMENT = 0xFFFFFFFE,
-        HANDSHAKE_TYPE_CONCLUSION = 0xFFFFFFFF,
-        HANDSHAKE_TYPE_WAVEHAND = 0x00000000,
-        HANDSHAKE_TYPE_INDUCTION = 0x00000001
+        HS_TYPE_DONE = 0xFFFFFFFD,
+        HS_TYPE_AGREEMENT = 0xFFFFFFFE,
+        HS_TYPE_CONCLUSION = 0xFFFFFFFF,
+        HS_TYPE_WAVEHAND = 0x00000000,
+        HS_TYPE_INDUCTION = 0x00000001
     };
 
     enum { HS_EXT_FILED_HSREQ = 0x00000001, HS_EXT_FILED_KMREQ = 0x00000002, HS_EXT_FILED_CONFIG = 0x00000004 };
+    
+   
+    
     HandshakePacket() = default;
     ~HandshakePacket() = default;
 
@@ -184,6 +188,7 @@ public:
     static uint32_t getSynCookie(uint8_t *buf, size_t len);
     static uint32_t generateSynCookie(struct sockaddr_storage* addr,TimePoint ts,uint32_t current_cookie = 0, int correction = 0);
 
+    void assignPeerIP(struct sockaddr_storage* addr);
     ///////ControlPacket override///////
     bool loadFromData(uint8_t *buf, size_t len) override;
     bool storeToData() override;
@@ -199,8 +204,11 @@ public:
     uint32_t syn_cookie;
     uint8_t peer_ip_addr[16];
 
-    uint16_t extension_type;
-    uint16_t extension_length;
+    std::vector<HSExt::Ptr> ext_list;
+private:
+    bool loadExtMessage(uint8_t *buf,size_t len);
+    bool storeExtMessage();
+    size_t getExtSize();
 };
 
 } // namespace SRT

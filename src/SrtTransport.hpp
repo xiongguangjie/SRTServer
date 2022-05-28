@@ -42,6 +42,7 @@ private:
     void handleDropReq(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleUserDefinedType(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handlePeerError(uint8_t *buf, int len, struct sockaddr_storage *addr);
+    void handleDataPacket(uint8_t *buf, int len, struct sockaddr_storage *addr);
 protected:
     void sendDataPacket(DataPacket::Ptr pkt,char* buf,int len,bool flush = false);
     void sendControlPacket(ControlPacket::Ptr pkt,bool  flush = true);
@@ -55,6 +56,13 @@ private:
     uint32_t _socket_id;
 
     TimePoint _start_timestamp;
+
+    uint32_t _mtu = 1500;
+    uint32_t _max_window_size = 8192;
+    uint32_t  _init_seq_number = 0;
+
+    //保持发送的握手消息，防止丢失重发
+    HandshakePacket::Ptr _handleshake_res;
 
 };
 

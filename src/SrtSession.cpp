@@ -26,10 +26,10 @@ EventPoller::Ptr SrtSession::queryPoller(const Buffer::Ptr &buffer) {
 
     if(HandshakePacket::isHandshakePacket(data,size)){
         auto type = HandshakePacket::getHandshakeType(data,size);
-        if(type == HandshakePacket::HANDSHAKE_TYPE_INDUCTION){
+        if(type == HandshakePacket::HS_TYPE_INDUCTION){
             // 握手第一阶段
             return nullptr;
-        }else if(type == HandshakePacket::HANDSHAKE_TYPE_CONCLUSION){
+        }else if(type == HandshakePacket::HS_TYPE_CONCLUSION){
             // 握手第二阶段
             uint32_t sync_cookie = HandshakePacket::getSynCookie(data,size);
             auto trans = SrtTransportManager::Instance().getHandshakeItem(std::to_string(sync_cookie));
@@ -65,11 +65,11 @@ void SrtSession::onRecv(const Buffer::Ptr &buffer) {
 
         if (HandshakePacket::isHandshakePacket(data, size)) {
             auto type = HandshakePacket::getHandshakeType(data, size);
-            if (type == HandshakePacket::HANDSHAKE_TYPE_INDUCTION) {
+            if (type == HandshakePacket::HS_TYPE_INDUCTION) {
                 // 握手第一阶段
                 _transport = std::make_shared<SrtTransport>(getPoller());
 
-            } else if (type == HandshakePacket::HANDSHAKE_TYPE_CONCLUSION) {
+            } else if (type == HandshakePacket::HS_TYPE_CONCLUSION) {
                 // 握手第二阶段
                 uint32_t sync_cookie = HandshakePacket::getSynCookie(data, size);
                 auto trans = SrtTransportManager::Instance().getHandshakeItem(std::to_string(sync_cookie));

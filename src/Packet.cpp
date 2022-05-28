@@ -162,8 +162,8 @@ bool ControlPacket::loadHeader() {
 }
 bool ControlPacket::storeToHeader() {
     uint8_t *ptr = (uint8_t *)_data->data();
+    ptr[0] = 0x80;
     ptr[0] |= control_type >> 8;
-    ptr[0] |= 0x80;
     ptr[1] = control_type & 0xff;
     ptr += 2;
 

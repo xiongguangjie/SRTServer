@@ -3,6 +3,7 @@
 
 #include <mutex>
 #include <chrono>
+#include <memory>
 
 #include "Network/Session.h"
 #include "Poller/EventPoller.h"
@@ -13,7 +14,7 @@
 namespace SRT {
 using namespace toolkit;
 
-class SrtTransport {
+class SrtTransport : public std::enable_shared_from_this<SrtTransport> {
 public:
     using Ptr = std::shared_ptr<SrtTransport>;
 
@@ -31,8 +32,19 @@ public:
     void inputSockData(uint8_t *buf, int len, struct sockaddr_storage *addr);
 
     std::string getIdentifier();
+    
+    void unregisterSelfHandshake();
+    void unregisterSelf();
 private:
+    void registerSelfHandshake();
+    void registerSelf();
+
+    void switchToOtherTransport(uint8_t *buf, int len,uint32_t socketid, struct sockaddr_storage *addr);
+
     void handleHandshake(uint8_t *buf, int len, struct sockaddr_storage *addr);
+    void handleHandshakeInduction(HandshakePacket& pkt,struct sockaddr_storage *addr);
+    void handleHandshakeConclusion(HandshakePacket& pkt,struct sockaddr_storage *addr);
+
     void handleKeeplive(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleACK(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleACKACK(uint8_t *buf, int len, struct sockaddr_storage *addr);
@@ -53,13 +65,16 @@ private:
     EventPoller::Ptr _poller;
 
     uint32_t _peer_socket_id;
-    uint32_t _socket_id;
+    uint32_t _socket_id = 0;
 
     TimePoint _start_timestamp;
 
     uint32_t _mtu = 1500;
     uint32_t _max_window_size = 8192;
     uint32_t  _init_seq_number = 0;
+
+    std::string _stream_id;
+    uint32_t _sync_cookie = 0;
 
     //保持发送的握手消息，防止丢失重发
     HandshakePacket::Ptr _handleshake_res;

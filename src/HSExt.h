@@ -116,6 +116,7 @@ public:
 */
 class HSExtStreamID : public HSExt {
 public:
+    using Ptr =  std::shared_ptr<HSExtStreamID>;
     HSExtStreamID() = default;
     ~HSExtStreamID() = default;
     bool loadFromData(uint8_t *buf, size_t len) override;

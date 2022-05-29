@@ -119,6 +119,8 @@ void SrtSession::onError(const SockException &err) {
     auto transport = std::move(_transport);
     getPoller()->async([transport] {
         //延时减引用，防止使用transport对象时，销毁对象
+        transport->unregisterSelfHandshake();
+        transport->unregisterSelf();
     }, false);
 }
 

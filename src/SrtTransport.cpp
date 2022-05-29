@@ -30,6 +30,18 @@ const Session::Ptr &SrtTransport::getSession() const {
     return _selected_session;
 }
 
+void SrtTransport::switchToOtherTransport(uint8_t *buf, int len,uint32_t socketid, struct sockaddr_storage *addr){
+    BufferRaw::Ptr tmp = BufferRaw::create();
+    struct sockaddr_storage tmp_addr = *addr;
+    tmp->assign((char*)buf,len);
+    auto trans = SrtTransportManager::Instance().getItem(std::to_string(socketid));
+    if(trans){
+        trans->getPoller()->async([tmp,tmp_addr,trans]{
+            trans->inputSockData((uint8_t*)tmp->data(),tmp->size(),(struct sockaddr_storage*)&tmp_addr);
+        });
+    }
+}
+
 void SrtTransport::inputSockData(uint8_t *buf, int len, struct sockaddr_storage *addr) {
      using srt_control_handler = void (SrtTransport::*)(uint8_t* buf,int len,struct sockaddr_storage *addr);
     static std::unordered_map<uint16_t, srt_control_handler> s_control_functions;
@@ -48,10 +60,22 @@ void SrtTransport::inputSockData(uint8_t *buf, int len, struct sockaddr_storage 
 
     // 处理srt数据
     if (DataPacket::isDataPacket(buf, len)) {
-        handleDataPacket(buf,len,addr);
+        uint32_t socketId = DataPacket::getSocketID(buf,len);
+        if(socketId == _socket_id){
+            handleDataPacket(buf,len,addr);
+        }else{
+            switchToOtherTransport(buf,len,socketId,addr);
+        }
     } else {
         if (ControlPacket::isControlPacket(buf, len)) {
-            auto it = s_control_functions.find(ControlPacket::getControlType(buf,len));
+            uint32_t socketId = ControlPacket::getSocketID(buf,len);
+             uint16_t type = ControlPacket::getControlType(buf,len);
+            if(type != ControlPacket::HANDSHAKE && socketId != _socket_id && _socket_id != 0){
+                // socket id not same
+                switchToOtherTransport(buf,len,socketId,addr);
+                return;
+            }
+            auto it = s_control_functions.find(type);
             if (it == s_control_functions.end()) {
                 WarnL<<" not support type ignore" << ControlPacket::getControlType(buf,len);
                 return;
@@ -64,81 +88,104 @@ void SrtTransport::inputSockData(uint8_t *buf, int len, struct sockaddr_storage 
         }
     }
 }
-void SrtTransport::handleHandshake(uint8_t *buf, int len, struct sockaddr_storage *addr){
-    HandshakePacket pkt;
-    assert(pkt.loadFromData(buf,len));
 
-    if(pkt.version == 4 && pkt.handshake_type == HandshakePacket::HS_TYPE_INDUCTION){
-        // Induction Phase
-        TraceL<<getIdentifier() <<" Induction Phase ";
-        if(_handleshake_res){
-            TraceL<<getIdentifier()<<" Induction handle repeate ";
-            sendControlPacket(_handleshake_res,true);
-            return;
+void SrtTransport::handleHandshakeInduction(HandshakePacket &pkt, struct sockaddr_storage *addr) {
+    // Induction Phase
+    TraceL << getIdentifier() << " Induction Phase ";
+    if (_handleshake_res) {
+        TraceL << getIdentifier() << " Induction handle repeate ";
+        sendControlPacket(_handleshake_res, true);
+        return;
+    }
+
+    _init_seq_number = pkt.initial_packet_sequence_number;
+    _max_window_size = pkt.max_flow_window_size;
+    _mtu = pkt.mtu;
+
+    _peer_socket_id = pkt.srt_socket_id;
+    HandshakePacket::Ptr res = std::make_shared<HandshakePacket>();
+    res->dst_socket_id = _peer_socket_id;
+    res->timestamp = DurationCountMicroseconds(_start_timestamp.time_since_epoch());
+    res->mtu = _mtu;
+    res->max_flow_window_size = _max_window_size;
+    res->initial_packet_sequence_number = _init_seq_number;
+    res->version = 5;
+    res->encryption_field = HandshakePacket::NO_ENCRYPTION;
+    res->extension_field = 0x4A17;
+    res->handshake_type = HandshakePacket::HS_TYPE_INDUCTION;
+    res->srt_socket_id = _peer_socket_id;
+    res->syn_cookie = HandshakePacket::generateSynCookie(addr, _start_timestamp);
+    _sync_cookie = res->syn_cookie;
+    memcpy(res->peer_ip_addr, pkt.peer_ip_addr, sizeof(pkt.peer_ip_addr) * sizeof(pkt.peer_ip_addr[0]));
+    _handleshake_res = res;
+    res->storeToData();
+
+    registerSelfHandshake();
+    sendControlPacket(res, true);
+}
+void SrtTransport::handleHandshakeConclusion(HandshakePacket &pkt, struct sockaddr_storage *addr) {
+    if(!_handleshake_res){
+        ErrorL<<"must Induction Phase for handleshake ";
+        return;
+    }
+
+    if (_handleshake_res->handshake_type == HandshakePacket::HS_TYPE_INDUCTION) {
+        // first
+        HSExtMessage::Ptr req;
+        HSExtStreamID::Ptr sid;
+
+        for (auto ext : pkt.ext_list) {
+            //TraceL << getIdentifier() << " ext " << ext->dump();
+            if (!req) {
+                req = std::dynamic_pointer_cast<HSExtMessage>(ext);
+            }
+            if(!sid){
+                sid = std::dynamic_pointer_cast<HSExtStreamID>(ext);
+            }
         }
-        _init_seq_number = pkt.initial_packet_sequence_number;
-        _max_window_size = pkt.max_flow_window_size;
-        _mtu = pkt.mtu;
-
-        _peer_socket_id = pkt.srt_socket_id;
+        if(sid){
+            _stream_id = sid->streamid;
+        }
+        TraceL << getIdentifier() << " CONCLUSION Phase ";
         HandshakePacket::Ptr res = std::make_shared<HandshakePacket>();
         res->dst_socket_id = _peer_socket_id;
-        res->timestamp = DurationCountMicroseconds(_start_timestamp.time_since_epoch());
+        res->timestamp = DurationCountMicroseconds(SteadyClock::now() - _start_timestamp);
         res->mtu = _mtu;
         res->max_flow_window_size = _max_window_size;
         res->initial_packet_sequence_number = _init_seq_number;
         res->version = 5;
         res->encryption_field = HandshakePacket::NO_ENCRYPTION;
-        res->extension_field = 0x4A17;
-        res->handshake_type = HandshakePacket::HS_TYPE_INDUCTION;
-        res->srt_socket_id = _peer_socket_id;
-        res->syn_cookie = HandshakePacket::generateSynCookie(addr,_start_timestamp);
-        //res->assignPeerIP(addr);
-        memcpy(res->peer_ip_addr,pkt.peer_ip_addr,sizeof(pkt.peer_ip_addr)*sizeof(pkt.peer_ip_addr[0]));
-
-        _handleshake_res = res;
+        res->extension_field = HandshakePacket::HS_EXT_FILED_HSREQ;
+        res->handshake_type = HandshakePacket::HS_TYPE_CONCLUSION;
+        res->srt_socket_id = _socket_id;
+        res->syn_cookie = 0;
+        res->assignPeerIP(addr);
+        HSExtMessage::Ptr ext = std::make_shared<HSExtMessage>();
+        ext->extension_type = HSExt::SRT_CMD_HSRSP;
+        ext->srt_version = srtVersion(1, 5, 0);
+        ext->srt_flag = req->srt_flag;
+        ext->recv_tsbpd_delay = ext->send_tsbpd_delay = req->recv_tsbpd_delay;
+        res->ext_list.push_back(std::move(ext));
         res->storeToData();
-        sendControlPacket(res,true);
+        _handleshake_res = res;
+        unregisterSelfHandshake();
+        registerSelf();
+        sendControlPacket(res, true);
+    } else {
+        TraceL << getIdentifier() << " CONCLUSION handle repeate ";
+        sendControlPacket(_handleshake_res, true);
+    }
+}
+void SrtTransport::handleHandshake(uint8_t *buf, int len, struct sockaddr_storage *addr){
+    HandshakePacket pkt;
+    assert(pkt.loadFromData(buf,len));
 
-    }else if(pkt.version == 5 && pkt.handshake_type == HandshakePacket::HS_TYPE_CONCLUSION && _handleshake_res){
-        // CONCLUSION Phase
-        if(_handleshake_res->handshake_type == HandshakePacket::HS_TYPE_INDUCTION){
-            // first
-            HSExtMessage::Ptr req;
-            for (auto ext : pkt.ext_list) {
-                TraceL << getIdentifier() << " ext " << ext->dump();
-                if (!req) {
-                    req = std::dynamic_pointer_cast<HSExtMessage>(ext);
-                }
-            }
-
-            TraceL<<getIdentifier() <<" CONCLUSION Phase ";
-            HandshakePacket::Ptr res = std::make_shared<HandshakePacket>();
-            res->dst_socket_id = _peer_socket_id;
-            res->timestamp = DurationCountMicroseconds(SteadyClock::now() - _start_timestamp);
-            res->mtu = _mtu;
-            res->max_flow_window_size = _max_window_size;
-            res->initial_packet_sequence_number = _init_seq_number;
-            res->version = 5;
-            res->encryption_field = HandshakePacket::NO_ENCRYPTION;
-            res->extension_field = HandshakePacket::HS_EXT_FILED_HSREQ;
-            res->handshake_type = HandshakePacket::HS_TYPE_CONCLUSION;
-            res->srt_socket_id = _socket_id;
-            res->syn_cookie = 0;
-            res->assignPeerIP(addr);
-            HSExtMessage::Ptr ext =  std::make_shared<HSExtMessage>();
-            ext->extension_type = HSExt::SRT_CMD_HSRSP;
-            ext->srt_version = 0x010500;
-            ext->srt_flag = req->srt_flag;
-            ext->recv_tsbpd_delay = ext->send_tsbpd_delay = req->recv_tsbpd_delay;
-            res->ext_list.push_back(std::move(ext));
-            res->storeToData();
-            _handleshake_res = res;
-            sendControlPacket(res, true);
-        }else{
-            TraceL<<getIdentifier()<<" CONCLUSION handle repeate ";
-            sendControlPacket(_handleshake_res,true);
-        }
+    if(pkt.handshake_type == HandshakePacket::HS_TYPE_INDUCTION){
+        handleHandshakeInduction(pkt,addr);
+    }else if(pkt.handshake_type == HandshakePacket::HS_TYPE_CONCLUSION){
+        handleHandshakeConclusion(pkt,addr);
+    }else{
+        WarnL<<" not support handshake type = "<< pkt.handshake_type;
     }
 }
 void SrtTransport::handleKeeplive(uint8_t *buf, int len, struct sockaddr_storage *addr){
@@ -155,6 +202,10 @@ void SrtTransport::handleCongestionWarning(uint8_t *buf, int len, struct sockadd
 }
 void SrtTransport::handleShutDown(uint8_t *buf, int len, struct sockaddr_storage *addr){
     TraceL;
+    unregisterSelf();
+    if(_selected_session){
+        _selected_session->shutdown();
+    }
 }
 void SrtTransport::handleDropReq(uint8_t *buf, int len, struct sockaddr_storage *addr){
     TraceL;
@@ -196,6 +247,27 @@ void SrtTransport::sendPacket(Buffer::Ptr pkt,bool flush){
 }
 std::string SrtTransport::getIdentifier(){
     return _selected_session ? _selected_session->getIdentifier() : "";
+}
+
+void SrtTransport::registerSelfHandshake() { 
+    SrtTransportManager::Instance().addHandshakeItem(std::to_string(_sync_cookie),shared_from_this());
+}
+void SrtTransport::unregisterSelfHandshake() { 
+    if(_sync_cookie == 0){
+        return;
+    }
+    SrtTransportManager::Instance().removeHandshakeItem(std::to_string(_sync_cookie));
+}
+
+void SrtTransport::registerSelf() {
+    if(_socket_id == 0){
+        return;
+    }
+    SrtTransportManager::Instance().addItem(std::to_string(_socket_id),shared_from_this());
+
+}
+void SrtTransport::unregisterSelf() { 
+    SrtTransportManager::Instance().removeItem(std::to_string(_socket_id));
 }
 ////////////  SrtTransportManager //////////////////////////
 SrtTransportManager &SrtTransportManager::Instance() {

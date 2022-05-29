@@ -1,9 +1,9 @@
-#ifndef ZLMEDIAKIT_SRT_HS_EXT_H
+﻿#ifndef ZLMEDIAKIT_SRT_HS_EXT_H
 #define ZLMEDIAKIT_SRT_HS_EXT_H
 
 #include "Network/Buffer.h"
 
-#include "Common.h"
+#include "Common.hpp"
 
 namespace SRT {
 using namespace toolkit;

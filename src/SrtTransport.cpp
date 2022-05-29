@@ -1,4 +1,4 @@
-#include "Util/onceToken.h"
+﻿#include "Util/onceToken.h"
 
 #include "SrtTransport.hpp"
 #include "Packet.hpp"
@@ -187,6 +187,7 @@ void SrtTransport::handleHandshake(uint8_t *buf, int len, struct sockaddr_storag
     }else{
         WarnL<<" not support handshake type = "<< pkt.handshake_type;
     }
+    _ack_ticker.resetTime();
 }
 void SrtTransport::handleKeeplive(uint8_t *buf, int len, struct sockaddr_storage *addr){
     TraceL;
@@ -225,6 +226,19 @@ void SrtTransport::handlePeerError(uint8_t *buf, int len, struct sockaddr_storag
 void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_storage *addr){
     DataPacket::Ptr pkt = std::make_shared<DataPacket>();
     pkt->loadFromData(buf,len);
+    if(_ack_ticker.elapsedTime()>=10){
+        _light_ack_pkt_count = 0;
+        _ack_ticker.resetTime();
+        // send a ack per 10 ms for receiver 
+    }else{
+        if(_light_ack_pkt_count >= 64){
+            // for high bitrate stream send light ack
+            // TODO 
+        }
+        _light_ack_pkt_count = 0;
+    }
+    
+    _light_ack_pkt_count++;
     TraceL<<" seq="<< (uint32_t)pkt->packet_seq_number<<" ts="<<pkt->timestamp<<" size="<<pkt->payloadSize();
 }
 

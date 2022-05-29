@@ -1,14 +1,16 @@
-#ifndef ZLMEDIAKIT_SRT_TRANSPORT_H
+﻿#ifndef ZLMEDIAKIT_SRT_TRANSPORT_H
 #define ZLMEDIAKIT_SRT_TRANSPORT_H
 
 #include <mutex>
 #include <chrono>
 #include <memory>
+#include <atomic>
 
 #include "Network/Session.h"
 #include "Poller/EventPoller.h"
+#include "Util/TimeTicker.h"
 
-#include "Common.h"
+#include "Common.hpp"
 #include "Packet.hpp"
 
 namespace SRT {
@@ -75,6 +77,12 @@ private:
 
     std::string _stream_id;
     uint32_t _sync_cookie = 0;
+
+    
+    uint32_t _rtt = 100*1000;
+    uint32_t _rtt_variance =50*1000;
+    uint32_t _light_ack_pkt_count = 0;
+    Ticker _ack_ticker;
 
     //保持发送的握手消息，防止丢失重发
     HandshakePacket::Ptr _handleshake_res;

@@ -6,8 +6,8 @@
 
 #include "Network/Buffer.h"
 
-#include "Common.h"
-#include "HSExt.h"
+#include "Common.hpp"
+#include "HSExt.hpp"
 
 namespace SRT {
 

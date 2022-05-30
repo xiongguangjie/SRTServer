@@ -12,6 +12,7 @@
 
 #include "Common.hpp"
 #include "Packet.hpp"
+#include "PacketQueue.hpp"
 
 namespace SRT {
 using namespace toolkit;
@@ -78,7 +79,7 @@ private:
     std::string _stream_id;
     uint32_t _sync_cookie = 0;
 
-    
+    PacketQueue::Ptr _recv_buf;
     uint32_t _rtt = 100*1000;
     uint32_t _rtt_variance =50*1000;
     uint32_t _light_ack_pkt_count = 0;

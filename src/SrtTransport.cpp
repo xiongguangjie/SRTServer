@@ -353,10 +353,10 @@ void SrtTransport::sendControlPacket(ControlPacket::Ptr pkt, bool flush) {
 }
 void SrtTransport::sendPacket(Buffer::Ptr pkt,bool flush){
     if(_selected_session){
-         BufferRaw::Ptr tmp = BufferRaw::create();
+         auto tmp = _packet_pool.obtain2();
          tmp->assign(pkt->data(),pkt->size());
          _selected_session->setSendFlushFlag(flush);
-         _selected_session->send(tmp);
+         _selected_session->send(std::move(tmp));
     }else{
         WarnL<<"not reach this";
     }

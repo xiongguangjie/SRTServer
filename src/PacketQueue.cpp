@@ -77,7 +77,7 @@ std::list<PacketQueue::LostPair> PacketQueue::getLostSeq() {
             re.push_back(lost);
         }
     }
-    
+
     return re;
 }
 
@@ -90,5 +90,13 @@ size_t PacketQueue::getExpectedSize() {
         return 0;
     }
     return _pkt_map.rbegin()->first - _pkt_expected_seq+1;
+}
+
+size_t PacketQueue::getAvailableBufferSize(){
+    return _pkt_cap - getExpectedSize();
+}
+
+uint32_t PacketQueue::getExpectedSeq(){
+    return _pkt_expected_seq;
 }
 } // namespace SRT

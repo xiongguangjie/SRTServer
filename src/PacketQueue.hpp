@@ -25,6 +25,8 @@ public:
 
     size_t getSize();
     size_t getExpectedSize();
+    size_t getAvailableBufferSize();
+    uint32_t getExpectedSeq();
     
     
 private:

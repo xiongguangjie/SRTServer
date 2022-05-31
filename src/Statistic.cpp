@@ -50,11 +50,11 @@ uint32_t EstimatedLinkCapacityContext::getEstimatedLinkCapacity() {
 
 }
 
-void RecvRateContext::inputPacket(TimePoint ts, DataPacket::Ptr pkt) {
+void RecvRateContext::inputPacket(TimePoint ts, size_t size ) {
     if (_pkt_map.size() > 100) {
         _pkt_map.erase(_pkt_map.begin());
     }
-    _pkt_map.emplace(ts, pkt);
+    _pkt_map.emplace(ts, size);
 }
 uint32_t RecvRateContext::getRecvRate() {
     if(_pkt_map.size()<2){
@@ -67,7 +67,7 @@ uint32_t RecvRateContext::getRecvRate() {
 
     size_t bytes = 0;
     for(auto it : _pkt_map){
-        bytes += it.second->size();
+        bytes += it.second;
     }
     double rate = (double)bytes/dur;
     return (uint32_t)rate;

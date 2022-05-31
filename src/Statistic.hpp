@@ -31,10 +31,10 @@ class RecvRateContext {
 public:
     RecvRateContext() = default;
     ~RecvRateContext() = default;
-    void inputPacket(TimePoint ts,DataPacket::Ptr pkt);
+    void inputPacket(TimePoint ts,size_t size);
     uint32_t getRecvRate();
 private:
-    std::map<TimePoint,DataPacket::Ptr> _pkt_map;
+    std::map<TimePoint,size_t> _pkt_map;
 };
 
 

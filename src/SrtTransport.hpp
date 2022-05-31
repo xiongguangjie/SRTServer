@@ -13,6 +13,7 @@
 #include "Common.hpp"
 #include "Packet.hpp"
 #include "PacketQueue.hpp"
+#include "Statistic.hpp"
 
 namespace SRT {
 using namespace toolkit;
@@ -58,6 +59,9 @@ private:
     void handleUserDefinedType(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handlePeerError(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleDataPacket(uint8_t *buf, int len, struct sockaddr_storage *addr);
+
+    void sendACKPacket();
+    void sendLightACKPacket();
 protected:
     void sendDataPacket(DataPacket::Ptr pkt,char* buf,int len,bool flush = false);
     void sendControlPacket(ControlPacket::Ptr pkt,bool  flush = true);
@@ -83,7 +87,13 @@ private:
     uint32_t _rtt = 100*1000;
     uint32_t _rtt_variance =50*1000;
     uint32_t _light_ack_pkt_count = 0;
+    uint32_t _ack_number_count = 0;
     Ticker _ack_ticker;
+    std::map<uint32_t,TimePoint> _ack_send_timestamp;
+
+    PacketRecvRateContext _pkt_recv_rate_context;
+    EstimatedLinkCapacityContext _estimated_link_capacity_context;
+    RecvRateContext _recv_rate_context;
 
     //保持发送的握手消息，防止丢失重发
     HandshakePacket::Ptr _handleshake_res;

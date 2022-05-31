@@ -50,12 +50,12 @@ public:
     char *payloadData();
     size_t payloadSize();
 
-    uint32_t f : 1;
-    uint32_t packet_seq_number : 31;
-    uint32_t PP : 2;
-    uint32_t O : 1;
-    uint32_t KK : 2;
-    uint32_t R : 1;
+    uint8_t f : 1;
+    uint32_t packet_seq_number;
+    uint8_t PP : 2;
+    uint8_t O : 1;
+    uint8_t KK : 2;
+    uint8_t R : 1;
     uint32_t msg_number : 26;
     uint32_t timestamp;
     uint32_t dst_socket_id;
@@ -209,6 +209,34 @@ private:
     bool loadExtMessage(uint8_t *buf,size_t len);
     bool storeExtMessage();
     size_t getExtSize();
+};
+
+class KeepLivePacket : public ControlPacket
+{
+public:
+    using Ptr = std::shared_ptr<KeepLivePacket>;
+    KeepLivePacket() = default;
+    ~KeepLivePacket() = default;
+     ///////ControlPacket override///////
+    bool loadFromData(uint8_t *buf, size_t len) override;
+    bool storeToData() override;
+};
+
+class NAKPacket : public ControlPacket 
+{
+public:
+    using Ptr = std::shared_ptr<NAKPacket>;
+    using LostPair = std::pair<uint32_t,uint32_t>;
+    NAKPacket() = default;
+    ~NAKPacket() = default;
+    
+    ///////ControlPacket override///////
+    bool loadFromData(uint8_t *buf, size_t len) override;
+    bool storeToData() override;
+
+    std::list<LostPair> lost_list;
+private:
+    size_t getCIFSize();
 };
 
 } // namespace SRT

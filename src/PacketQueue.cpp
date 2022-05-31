@@ -4,7 +4,8 @@ namespace SRT {
 PacketQueue::PacketQueue(uint32_t max_size, uint32_t init_seq, uint32_t lantency)
     : _pkt_expected_seq(init_seq)
     , _pkt_cap(max_size)
-    , _pkt_lantency(lantency) {}
+    , _pkt_lantency(lantency) {
+    }
 
 bool PacketQueue::inputPacket(DataPacket::Ptr pkt) {
     if (pkt->packet_seq_number < _pkt_expected_seq) {
@@ -45,7 +46,7 @@ std::list<DataPacket::Ptr> PacketQueue::tryGetPacket() {
 
 uint32_t PacketQueue::timeLantency() {
     if (_pkt_map.empty()) {
-        return true;
+        return 0;
     }
 
     auto first = _pkt_map.begin()->second;
@@ -56,7 +57,14 @@ uint32_t PacketQueue::timeLantency() {
 
 std::list<PacketQueue::LostPair> PacketQueue::getLostSeq() {
     std::list<PacketQueue::LostPair> re;
+    if(_pkt_map.empty()){
+        return re;
+    }
     
+    if(getExpectedSize() == getSize()){
+        return re;
+    }
+
     PacketQueue::LostPair lost;
     lost.first = 0;
     lost.second = 0;

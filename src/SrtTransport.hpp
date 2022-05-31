@@ -59,7 +59,8 @@ private:
     void handleUserDefinedType(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handlePeerError(uint8_t *buf, int len, struct sockaddr_storage *addr);
     void handleDataPacket(uint8_t *buf, int len, struct sockaddr_storage *addr);
-
+    
+    void sendNAKPacket(std::list<PacketQueue::LostPair>& lost_list);
     void sendACKPacket();
     void sendLightACKPacket();
 protected:
@@ -94,6 +95,8 @@ private:
     PacketRecvRateContext _pkt_recv_rate_context;
     EstimatedLinkCapacityContext _estimated_link_capacity_context;
     RecvRateContext _recv_rate_context;
+
+    Ticker _nak_ticker;
 
     //保持发送的握手消息，防止丢失重发
     HandshakePacket::Ptr _handleshake_res;

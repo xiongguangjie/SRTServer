@@ -41,7 +41,7 @@ bool DataPacket::loadFromData(uint8_t *buf, size_t len) {
     }
     uint8_t *ptr = buf;
     f = ptr[0] >> 7;
-    packet_seq_number = (ptr[0] & 0x7f) << 24 | ptr[1] << 12 | ptr[2] << 8 | ptr[3];
+    packet_seq_number = loadUint32(ptr)&0x7fffffff;
     ptr += 4;
 
     PP = ptr[0] >> 6;
@@ -433,6 +433,97 @@ uint32_t HandshakePacket::generateSynCookie(struct sockaddr_storage* addr,TimePo
         if (distractor == rollover)
             return cookie_val;
     }
+}
+
+bool KeepLivePacket::loadFromData(uint8_t *buf, size_t len){
+    if (len < HEADER_SIZE) {
+        WarnL << "data size" << len << " less " << HEADER_SIZE;
+        return false;
+    }
+    _data = BufferRaw::create();
+    _data->assign((char*)buf,len);
+    
+    return loadHeader();
+}
+bool KeepLivePacket::storeToData(){
+    control_type = ControlPacket::KEEPALIVE;
+    sub_type = 0;
+
+    _data = BufferRaw::create();
+    _data->setCapacity(HEADER_SIZE);
+    _data->setSize(HEADER_SIZE);
+    return storeToHeader();
+}
+
+bool NAKPacket::loadFromData(uint8_t *buf, size_t len) {
+    if (len < HEADER_SIZE) {
+        WarnL << "data size" << len << " less " << HEADER_SIZE;
+        return false;
+    }
+    _data = BufferRaw::create();
+    _data->assign((char*)buf,len);
+    loadHeader();
+
+    uint8_t* ptr = (uint8_t*)_data->data()+HEADER_SIZE;
+    uint8_t* end = (uint8_t*)_data->data()+_data->size();
+    LostPair lost;
+    while (ptr<end)
+    {
+        if((*ptr)&0x80){
+            lost.first = loadUint32(ptr)&0x7fffffff;
+            lost.second = loadUint32(ptr+4)&0x7fffffff;
+            ptr += 8;
+        }else{
+            lost.first = loadUint32(ptr);
+            lost.second = lost.first +1;
+            ptr += 4;
+        }
+        lost_list.push_back(lost);
+    }
+    return true;
+}
+bool NAKPacket::storeToData() {
+    control_type = NAK;
+    sub_type = 0;
+    size_t cif_size = getCIFSize();
+
+    _data = BufferRaw::create();
+    _data->setCapacity(HEADER_SIZE+cif_size);
+    _data->setSize(HEADER_SIZE+cif_size);
+
+    storeToHeader();
+
+    uint8_t* ptr = (uint8_t*)_data->data()+HEADER_SIZE;
+
+     for(auto it : lost_list){
+        if(it.first+1 ==it.second){
+           storeUint32(ptr,it.first);
+           ptr[0] = ptr[0]&0x7f;
+           ptr += 4;
+        }else{
+           storeUint32(ptr,it.first);
+           ptr[0] |= 0x80;
+
+           storeUint32(ptr+4,it.second);
+           ptr[4] = ptr[4]&0x7f;
+
+           ptr += 8;
+        }
+    }
+
+    return false;
+}
+
+size_t NAKPacket::getCIFSize(){
+    size_t size = 0;
+    for(auto it : lost_list){
+        if(it.first+1 ==it.second){
+            size += 4;
+        }else{
+            size += 8;
+        }
+    }
+    return size;
 }
 
 } // namespace SRT

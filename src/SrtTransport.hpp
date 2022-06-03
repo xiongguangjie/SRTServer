@@ -71,6 +71,7 @@ private:
     void sendNAKPacket(std::list<PacketQueue::LostPair>& lost_list);
     void sendACKPacket();
     void sendLightACKPacket();
+    void sendKeepLivePacket();
 protected:
     void sendDataPacket(DataPacket::Ptr pkt,char* buf,int len,bool flush = false);
     void sendControlPacket(ControlPacket::Ptr pkt,bool  flush = true);

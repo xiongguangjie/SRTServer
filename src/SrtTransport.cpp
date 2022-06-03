@@ -212,7 +212,17 @@ void SrtTransport::handleHandshake(uint8_t *buf, int len, struct sockaddr_storag
 }
 void SrtTransport::handleKeeplive(uint8_t *buf, int len, struct sockaddr_storage *addr){
     TraceL;
+    sendKeepLivePacket();
 }
+
+ void SrtTransport::sendKeepLivePacket(){
+    auto now =  SteadyClock::now();
+    KeepLivePacket::Ptr pkt = std::make_shared<KeepLivePacket>();
+    pkt->dst_socket_id = _peer_socket_id;
+    pkt->timestamp = DurationCountMicroseconds(now -_start_timestamp);
+    pkt->storeToData();
+    sendControlPacket(pkt,true);
+ }
 void SrtTransport::handleACK(uint8_t *buf, int len, struct sockaddr_storage *addr){
     TraceL;
     auto now =  SteadyClock::now();
@@ -355,7 +365,7 @@ void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_stora
         _nak_ticker.resetTime();
     }
 
-     if(_ack_ticker.elapsedTime()>=10*1000){
+     if(_ack_ticker.elapsedTime()>10*1000){
         _light_ack_pkt_count = 0;
         _ack_ticker.resetTime();
         // send a ack per 10 ms for receiver 

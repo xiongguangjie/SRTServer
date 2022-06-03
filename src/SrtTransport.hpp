@@ -87,6 +87,7 @@ private:
     uint32_t _peer_socket_id;
     uint32_t _socket_id = 0;
 
+    TimePoint _now;
     TimePoint _start_timestamp;
 
     uint32_t _mtu = 1500;
@@ -105,9 +106,9 @@ private:
     UTicker _ack_ticker;
     std::map<uint32_t,TimePoint> _ack_send_timestamp;
 
-    PacketRecvRateContext _pkt_recv_rate_context;
-    EstimatedLinkCapacityContext _estimated_link_capacity_context;
-    RecvRateContext _recv_rate_context;
+    std::shared_ptr<PacketRecvRateContext> _pkt_recv_rate_context;
+    std::shared_ptr<EstimatedLinkCapacityContext> _estimated_link_capacity_context;
+    std::shared_ptr<RecvRateContext> _recv_rate_context;
 
     UTicker _nak_ticker;
 

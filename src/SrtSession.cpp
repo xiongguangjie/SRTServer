@@ -1,11 +1,10 @@
 ﻿#include "SrtSession.hpp"
 #include "Packet.hpp"
-#include "SrtTransportImp.hpp"
+//#include "SrtTransportImp.hpp"
 
 //#include "Common/config.h"
 
 namespace SRT {
-using namespace mediakit;
 
 SrtSession::SrtSession(const Socket::Ptr &sock)
     : UdpSession(sock) {

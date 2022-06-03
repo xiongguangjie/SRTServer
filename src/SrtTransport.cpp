@@ -194,6 +194,7 @@ void SrtTransport::handleHandshakeConclusion(HandshakePacket &pkt, struct sockad
         TraceL << getIdentifier() << " CONCLUSION handle repeate ";
         sendControlPacket(_handleshake_res, true);
     }
+    _last_ack_pkt_seq_num = _init_seq_number;
 }
 void SrtTransport::handleHandshake(uint8_t *buf, int len, struct sockaddr_storage *addr){
     HandshakePacket pkt;
@@ -283,7 +284,7 @@ void SrtTransport::sendACKPacket() {
     _ack_send_timestamp[pkt->ack_number] = now;
      _last_ack_pkt_seq_num = pkt->last_ack_pkt_seq_number;
     sendControlPacket(pkt,true);
-    TraceL<<"send  ack";
+    TraceL<<"send  ack "<<pkt->dump();
 }
 void SrtTransport::sendLightACKPacket() {
     if(_last_ack_pkt_seq_num == _recv_buf->getExpectedSeq()){
@@ -304,7 +305,7 @@ void SrtTransport::sendLightACKPacket() {
     pkt->storeToData();
     _last_ack_pkt_seq_num = pkt->last_ack_pkt_seq_number;
     sendControlPacket(pkt,true);
-    TraceL<<"send  light ack";
+    TraceL<<"send  ack "<<pkt->dump();
 }
 
 void SrtTransport::sendNAKPacket(std::list<PacketQueue::LostPair>& lost_list){
@@ -325,7 +326,7 @@ void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_stora
     pkt->loadFromData(buf,len);
    
     //TraceL<<" seq="<< pkt->packet_seq_number<<" ts="<<pkt->timestamp<<" size="<<pkt->payloadSize()<<\
-    " PP="<<(int)pkt->PP<<" O="<<(int)pkt->O<<" kK="<<(int)pkt->KK<<" R="<<(int)pkt->R;
+    //" PP="<<(int)pkt->PP<<" O="<<(int)pkt->O<<" kK="<<(int)pkt->KK<<" R="<<(int)pkt->R;
 #if 1
     _recv_buf->inputPacket(pkt);
 #else
@@ -344,8 +345,8 @@ void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_stora
         onSRTData(std::move(data),addr);
     }
 
-    auto nak_interval = (_rtt+_rtt_variance*4)/2/1000;
-    if(_nak_ticker.elapsedTime()>20 && _nak_ticker.elapsedTime()>nak_interval){
+    auto nak_interval = (_rtt+_rtt_variance*4)/2;
+    if(_nak_ticker.elapsedTime()>20*1000 && _nak_ticker.elapsedTime()>nak_interval){
         auto lost = _recv_buf->getLostSeq();
         if(!lost.empty()){
              sendNAKPacket(lost);
@@ -354,7 +355,7 @@ void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_stora
         _nak_ticker.resetTime();
     }
 
-     if(_ack_ticker.elapsedTime()>=10){
+     if(_ack_ticker.elapsedTime()>=10*1000){
         _light_ack_pkt_count = 0;
         _ack_ticker.resetTime();
         // send a ack per 10 ms for receiver 

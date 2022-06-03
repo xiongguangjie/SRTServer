@@ -18,8 +18,12 @@
 namespace SRT {
 using namespace toolkit;
 
+extern const std::string kPort;
+extern const std::string kTimeOutSec;
+
 class SrtTransport : public std::enable_shared_from_this<SrtTransport> {
 public:
+    friend class SrtSession;
     using Ptr = std::shared_ptr<SrtTransport>;
 
     SrtTransport(const EventPoller::Ptr &poller);
@@ -39,6 +43,11 @@ public:
     
     void unregisterSelfHandshake();
     void unregisterSelf();
+protected:
+    virtual void onHandShakeFinished(std::string& streamid){};
+    virtual void onSRTData(DataPacket::Ptr pkt){};
+    virtual void onShutdown(const SockException &ex);
+
 private:
     void registerSelfHandshake();
     void registerSelf();
@@ -70,6 +79,9 @@ protected:
 private:
     //当前选中的udp链接
     Session::Ptr _selected_session;
+    //链接迁移前后使用过的udp链接
+    std::unordered_map<Session *, std::weak_ptr<Session> > _history_sessions;
+
     EventPoller::Ptr _poller;
 
     uint32_t _peer_socket_id;

@@ -44,6 +44,19 @@ std::list<DataPacket::Ptr> PacketQueue::tryGetPacket() {
     return std::move(re);
 }
 
+
+bool PacketQueue::dropForRecv(uint32_t first,uint32_t last){
+    if(first >= last){
+        return false;
+    }
+
+    if(_pkt_expected_seq < last){
+        _pkt_expected_seq = last;
+        return true;
+    }
+
+    return false;
+}
 uint32_t PacketQueue::timeLantency() {
     if (_pkt_map.empty()) {
         return 0;
@@ -81,8 +94,11 @@ std::list<PacketQueue::LostPair> PacketQueue::getLostSeq() {
                 lost.second = i+1;
             }
         }else{
-            finish = true;
-            re.push_back(lost);
+            
+            if(!finish){
+                finish = true;
+                re.push_back(lost);
+            }
         }
     }
 

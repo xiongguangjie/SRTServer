@@ -511,7 +511,7 @@ bool NAKPacket::storeToData() {
         }
     }
 
-    return false;
+    return true;
 }
 
 size_t NAKPacket::getCIFSize(){
@@ -526,4 +526,48 @@ size_t NAKPacket::getCIFSize(){
     return size;
 }
 
+std::string NAKPacket::dump(){
+    _StrPrinter printer;
+    for (auto it : lost_list) {
+        printer<<"[ "<<it.first<<" , "<<it.second<<" ]";
+    }
+    return std::move(printer);
+}
+
+bool MsgDropReqPacket::loadFromData(uint8_t *buf, size_t len) {
+    if (len < HEADER_SIZE+8) {
+        WarnL << "data size" << len << " less " << HEADER_SIZE;
+        return false;
+    }
+    _data = BufferRaw::create();
+    _data->assign((char*)buf,len);
+    loadHeader();
+
+    uint8_t* ptr = (uint8_t*)_data->data()+HEADER_SIZE;
+
+    first_pkt_seq_num = loadUint32(ptr);
+    ptr += 4;
+
+    last_pkt_seq_num = loadUint32(ptr);
+    ptr += 4;
+    return true;
+}
+bool MsgDropReqPacket::storeToData() {
+    control_type = DROPREQ;
+    sub_type = 0;
+    _data = BufferRaw::create();
+    _data->setCapacity(HEADER_SIZE+8);
+    _data->setSize(HEADER_SIZE+8);
+
+    storeToHeader();
+
+    uint8_t* ptr = (uint8_t*)_data->data()+HEADER_SIZE;
+
+    storeUint32(ptr,first_pkt_seq_num);
+    ptr += 4;
+
+    storeUint32(ptr,last_pkt_seq_num);
+    ptr += 4;
+    return true;
+}
 } // namespace SRT

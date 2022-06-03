@@ -4,6 +4,12 @@
 #include "Packet.hpp"
 #include "Ack.hpp"
 namespace SRT {
+#define SRT_FIELD "srt."
+//srt 超时时间
+const std::string kTimeOutSec = SRT_FIELD"timeoutSec";
+//srt 单端口udp服务器
+const std::string kPort =  SRT_FIELD"port";
+
 static std::atomic<uint32_t> s_srt_socket_id_generate{125};
 ////////////  SrtTransport //////////////////////////
 SrtTransport::SrtTransport(const EventPoller::Ptr &poller)
@@ -20,6 +26,7 @@ const EventPoller::Ptr &SrtTransport::getPoller() const {
 }
 
 void SrtTransport::setSession(Session::Ptr session) {
+    _history_sessions.emplace(session.get(), session);
     if (_selected_session) {
         InfoL << "srt network changed: " << _selected_session->get_peer_ip() << ":"
               << _selected_session->get_peer_port() << " -> " << session->get_peer_ip() << ":"
@@ -182,6 +189,7 @@ void SrtTransport::handleHandshakeConclusion(HandshakePacket &pkt, struct sockad
         sendControlPacket(res, true);
         TraceL<<" buf size = "<<res->max_flow_window_size<<" init seq ="<<_init_seq_number<<" lantency="<<req->recv_tsbpd_delay;
         _recv_buf = std::make_shared<PacketQueue>(res->max_flow_window_size,_init_seq_number, req->recv_tsbpd_delay*1e6);
+        onHandShakeFinished(_stream_id);
     } else {
         TraceL << getIdentifier() << " CONCLUSION handle repeate ";
         sendControlPacket(_handleshake_res, true);
@@ -225,13 +233,13 @@ void SrtTransport::handleCongestionWarning(uint8_t *buf, int len, struct sockadd
 }
 void SrtTransport::handleShutDown(uint8_t *buf, int len, struct sockaddr_storage *addr){
     TraceL;
-    unregisterSelf();
-    if(_selected_session){
-        _selected_session->shutdown();
-    }
+    onShutdown(SockException(Err_shutdown, "peer close connection"));
 }
 void SrtTransport::handleDropReq(uint8_t *buf, int len, struct sockaddr_storage *addr){
-    TraceL;
+    MsgDropReqPacket pkt;
+    pkt.loadFromData(buf,len);
+    TraceL<<"drop "<<pkt.first_pkt_seq_num<<" last "<<pkt.last_pkt_seq_num;
+    _recv_buf->dropForRecv(pkt.first_pkt_seq_num,pkt.last_pkt_seq_num);
 }
 void SrtTransport::handleUserDefinedType(uint8_t *buf, int len, struct sockaddr_storage *addr){
     TraceL;
@@ -298,6 +306,8 @@ void SrtTransport::sendNAKPacket(std::list<PacketQueue::LostPair>& lost_list){
     pkt->lost_list = lost_list;
 
     pkt->storeToData();
+
+    TraceL<<"send NAK "<<pkt->dump();
     sendControlPacket(pkt,true);
 }
 void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_storage *addr){
@@ -337,11 +347,15 @@ void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_stora
         auto lost = _recv_buf->getLostSeq();
         if(!lost.empty()){
              sendNAKPacket(lost);
-             TraceL<<"send NAK";
+             //TraceL<<"send NAK";
         }
         _nak_ticker.resetTime();
     }
     auto list = _recv_buf->tryGetPacket();
+
+    for(auto data : list){
+        onSRTData(std::move(data));
+    }
 }
 
 void SrtTransport::sendDataPacket(DataPacket::Ptr pkt,char* buf,int len, bool flush) { 
@@ -384,6 +398,18 @@ void SrtTransport::registerSelf() {
 }
 void SrtTransport::unregisterSelf() { 
     SrtTransportManager::Instance().removeItem(std::to_string(_socket_id));
+}
+
+void SrtTransport::onShutdown(const SockException &ex){
+    WarnL << ex.what();
+    unregisterSelfHandshake();
+    unregisterSelf();
+    for (auto &pr : _history_sessions) {
+        auto session = pr.second.lock();
+        if (session) {
+            session->shutdown(ex);
+        }
+    }
 }
 ////////////  SrtTransportManager //////////////////////////
 SrtTransportManager &SrtTransportManager::Instance() {
@@ -432,5 +458,6 @@ SrtTransport::Ptr SrtTransportManager::getHandshakeItem(const std::string &key) 
     }
     return it->second.lock();
 }
+
 
 } // namespace SRT

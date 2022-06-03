@@ -50,13 +50,13 @@ public:
     char *payloadData();
     size_t payloadSize();
 
-    uint8_t f : 1;
+    uint8_t f;
     uint32_t packet_seq_number;
-    uint8_t PP : 2;
-    uint8_t O : 1;
-    uint8_t KK : 2;
-    uint8_t R : 1;
-    uint32_t msg_number : 26;
+    uint8_t PP;
+    uint8_t O;
+    uint8_t KK;
+    uint8_t R;
+    uint32_t msg_number;
     uint32_t timestamp;
     uint32_t dst_socket_id;
 
@@ -268,7 +268,7 @@ public:
     using LostPair = std::pair<uint32_t,uint32_t>;
     NAKPacket() = default;
     ~NAKPacket() = default;
-    
+    std::string dump();
     ///////ControlPacket override///////
     bool loadFromData(uint8_t *buf, size_t len) override;
     bool storeToData() override;
@@ -276,6 +276,40 @@ public:
     std::list<LostPair> lost_list;
 private:
     size_t getCIFSize();
+};
+
+
+/*
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+- SRT Header +-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1|      Control Type = 7       |         Reserved = 0          |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                        Message Number                         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           Timestamp                           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                     Destination Socket ID                     |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                 First Packet Sequence Number                  |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                  Last Packet Sequence Number                  |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    Figure 18: Drop Request control packet
+    https://haivision.github.io/srt-rfc/draft-sharabayko-srt.html#name-message-drop-request
+*/
+class MsgDropReqPacket : public ControlPacket 
+{
+    public:
+    using Ptr = std::shared_ptr<MsgDropReqPacket>;
+    MsgDropReqPacket() = default;
+    ~MsgDropReqPacket() = default;
+    ///////ControlPacket override///////
+    bool loadFromData(uint8_t *buf, size_t len) override;
+    bool storeToData() override;
+
+    uint32_t first_pkt_seq_num;
+    uint32_t last_pkt_seq_num;
 };
 
 } // namespace SRT

@@ -27,6 +27,8 @@ public:
     size_t getExpectedSize();
     size_t getAvailableBufferSize();
     uint32_t getExpectedSeq();
+
+    bool dropForRecv(uint32_t first,uint32_t last);
     
     
 private:

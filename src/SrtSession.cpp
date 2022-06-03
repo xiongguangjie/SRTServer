@@ -2,7 +2,10 @@
 #include "Packet.hpp"
 #include "SrtTransport.hpp"
 
+#include "Common/config.h"
+
 namespace SRT {
+using namespace mediakit;
 
 SrtSession::SrtSession(const Socket::Ptr &sock)
     : UdpSession(sock) {
@@ -117,16 +120,15 @@ void SrtSession::onError(const SockException &err) {
     
     // 防止互相引用导致不释放
     auto transport = std::move(_transport);
-    getPoller()->async([transport] {
+    getPoller()->async([transport,err] {
         //延时减引用，防止使用transport对象时，销毁对象
-        transport->unregisterSelfHandshake();
-        transport->unregisterSelf();
+       transport->onShutdown(err);
     }, false);
 }
 
 void SrtSession::onManager() {
-
-    if (_ticker.elapsedTime() > 5 * 1000) {
+    GET_CONFIG(float, timeoutSec, kTimeOutSec);
+    if (_ticker.elapsedTime() > 5*1000) {
         shutdown(SockException(Err_timeout, "srt connection timeout"));
         return;
     }

@@ -293,7 +293,7 @@ void SrtTransport::sendACKPacket() {
     _ack_send_timestamp[pkt->ack_number] = _now;
      _last_ack_pkt_seq_num = pkt->last_ack_pkt_seq_number;
     sendControlPacket(pkt,true);
-    TraceL<<"send  ack "<<pkt->dump();
+    //TraceL<<"send  ack "<<pkt->dump();
 }
 void SrtTransport::sendLightACKPacket() {
     if(_last_ack_pkt_seq_num == _recv_buf->getExpectedSeq()){

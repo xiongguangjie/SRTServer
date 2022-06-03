@@ -50,8 +50,8 @@ bool PacketQueue::dropForRecv(uint32_t first,uint32_t last){
         return false;
     }
 
-    if(_pkt_expected_seq < last){
-        _pkt_expected_seq = last;
+    if(_pkt_expected_seq <= last){
+        _pkt_expected_seq = last+1;
         return true;
     }
 

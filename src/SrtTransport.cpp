@@ -328,7 +328,9 @@ void SrtTransport::handleDataPacket(uint8_t *buf, int len, struct sockaddr_stora
     }
     
     _light_ack_pkt_count++;
-    //TraceL<<" seq="<< (uint32_t)pkt->packet_seq_number<<" ts="<<pkt->timestamp<<" size="<<pkt->payloadSize();
+   
+    //TraceL<<" seq="<< pkt->packet_seq_number<<" ts="<<pkt->timestamp<<" size="<<pkt->payloadSize()<<\
+    " PP="<<(int)pkt->PP<<" O="<<(int)pkt->O<<" kK="<<(int)pkt->KK<<" R="<<(int)pkt->R;
 #if 1
     _recv_buf->inputPacket(pkt);
 #else

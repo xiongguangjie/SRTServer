@@ -2,10 +2,10 @@
 #include "Packet.hpp"
 #include "SrtTransport.hpp"
 
-#include "Common/config.h"
+//#include "Common/config.h"
 
 namespace SRT {
-using namespace mediakit;
+//using namespace mediakit;
 
 SrtSession::SrtSession(const Socket::Ptr &sock)
     : UdpSession(sock) {
@@ -127,7 +127,7 @@ void SrtSession::onError(const SockException &err) {
 }
 
 void SrtSession::onManager() {
-    GET_CONFIG(float, timeoutSec, kTimeOutSec);
+    //GET_CONFIG(float, timeoutSec, kTimeOutSec);
     if (_ticker.elapsedTime() > 5*1000) {
         shutdown(SockException(Err_timeout, "srt connection timeout"));
         return;

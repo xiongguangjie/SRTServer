@@ -472,6 +472,7 @@ bool NAKPacket::loadFromData(uint8_t *buf, size_t len) {
         if((*ptr)&0x80){
             lost.first = loadUint32(ptr)&0x7fffffff;
             lost.second = loadUint32(ptr+4)&0x7fffffff;
+            lost.second += 1;
             ptr += 8;
         }else{
             lost.first = loadUint32(ptr);
@@ -504,8 +505,8 @@ bool NAKPacket::storeToData() {
            storeUint32(ptr,it.first);
            ptr[0] |= 0x80;
 
-           storeUint32(ptr+4,it.second);
-           ptr[4] = ptr[4]&0x7f;
+           storeUint32(ptr+4,it.second-1);
+           //ptr[4] = ptr[4]&0x7f;
 
            ptr += 8;
         }
@@ -529,7 +530,7 @@ size_t NAKPacket::getCIFSize(){
 std::string NAKPacket::dump(){
     _StrPrinter printer;
     for (auto it : lost_list) {
-        printer<<"[ "<<it.first<<" , "<<it.second<<" ]";
+        printer<<"[ "<<it.first<<" , "<<it.second-1<<" ]";
     }
     return std::move(printer);
 }

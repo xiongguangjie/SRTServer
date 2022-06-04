@@ -80,6 +80,10 @@ bool HSExtStreamID::loadFromData(uint8_t *buf, size_t len)  {
         streamid.push_back(*(ptr));
         ptr+=4;
     }
+    char zero = 0x00;
+    if(streamid.back() == zero){
+        streamid.erase(streamid.find_first_of(zero),streamid.size());
+    }
     return true;
 
  }

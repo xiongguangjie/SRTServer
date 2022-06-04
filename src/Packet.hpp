@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "Network/Buffer.h"
+#include "Util/logger.h"
 
 #include "Common.hpp"
 #include "HSExt.hpp"
@@ -42,6 +43,7 @@ public:
     static uint32_t getSocketID(uint8_t *buf, size_t len);
     bool loadFromData(uint8_t *buf, size_t len);
     bool storeToData(uint8_t *buf, size_t len);
+    bool storeToHeader();
 
     ///////Buffer override///////
     char *data() const override;
@@ -312,6 +314,48 @@ class MsgDropReqPacket : public ControlPacket
     uint32_t last_pkt_seq_num;
 };
 
+/*
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+- SRT Header +-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1|        Control Type         |           Reserved            |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                   Type-specific Information                   |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                           Timestamp                           |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                     Destination Socket ID                     |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    Figure 16: Shutdown control packet
+    https://haivision.github.io/srt-rfc/draft-sharabayko-srt.html#name-shutdown
+
+*/
+class ShutDownPacket : public ControlPacket
+{
+public:
+    using Ptr = std::shared_ptr<ShutDownPacket>;
+    ShutDownPacket() = default;
+    ~ShutDownPacket() = default;
+     ///////ControlPacket override///////
+    bool loadFromData(uint8_t *buf, size_t len) override {
+        if (len < HEADER_SIZE) {
+            WarnL << "data size" << len << " less " << HEADER_SIZE;
+            return false;
+        }
+        _data = BufferRaw::create();
+        _data->assign((char *)buf, len);
+
+        return loadHeader();
+    };
+    bool storeToData() override {
+        control_type = ControlPacket::SHUTDOWN;
+        sub_type = 0;
+        _data = BufferRaw::create();
+        _data->setCapacity(HEADER_SIZE);
+        _data->setSize(HEADER_SIZE);
+        return storeToHeader();
+    };
+};
 } // namespace SRT
 
 #endif //ZLMEDIAKIT_SRT_PACKET_H

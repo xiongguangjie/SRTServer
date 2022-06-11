@@ -1,26 +1,26 @@
 ﻿#ifndef ZLMEDIAKIT_SRT_PACKET_QUEUE_H
 #define ZLMEDIAKIT_SRT_PACKET_QUEUE_H
-#include <memory>
-#include <map>
-#include <list>
-#include <utility>
-#include <tuple>
-
 #include "Packet.hpp"
+#include <algorithm>
+#include <list>
+#include <map>
+#include <memory>
+#include <tuple>
+#include <utility>
 
-namespace SRT{
+namespace SRT {
 
-class PacketQueue
-{
+// for recv
+class PacketQueue {
 public:
     using Ptr = std::shared_ptr<PacketQueue>;
-    using LostPair = std::pair<uint32_t,uint32_t>;
+    using LostPair = std::pair<uint32_t, uint32_t>;
 
-    PacketQueue(uint32_t max_size,uint32_t init_seq,uint32_t lantency);
+    PacketQueue(uint32_t max_size, uint32_t init_seq, uint32_t latency);
     ~PacketQueue() = default;
-    bool inputPacket(DataPacket::Ptr pkt);
-    std::list<DataPacket::Ptr> tryGetPacket();
-    uint32_t timeLantency();
+    bool inputPacket(DataPacket::Ptr pkt, std::list<DataPacket::Ptr> &out);
+
+    uint32_t timeLatency();
     std::list<LostPair> getLostSeq();
 
     size_t getSize();
@@ -28,21 +28,19 @@ public:
     size_t getAvailableBufferSize();
     uint32_t getExpectedSeq();
 
-    bool dropForRecv(uint32_t first,uint32_t last);
+    std::string dump();
+    bool drop(uint32_t first, uint32_t last, std::list<DataPacket::Ptr> &out);
 
-    bool dropForSend(uint32_t num);
-
-    DataPacket::Ptr findPacketBySeq(uint32_t seq);
-    
-    
 private:
-    std::map<uint32_t,DataPacket::Ptr> _pkt_map;
+    void tryInsertPkt(DataPacket::Ptr pkt);
 
-    uint32_t _pkt_expected_seq = 0;
+private:
     uint32_t _pkt_cap;
-    uint32_t _pkt_lantency;
+    uint32_t _pkt_latency;
+    uint32_t _pkt_expected_seq = 0;
+    std::map<uint32_t, DataPacket::Ptr> _pkt_map;
 };
 
-}
+} // namespace SRT
 
-#endif //ZLMEDIAKIT_SRT_PACKET_QUEUE_H
+#endif // ZLMEDIAKIT_SRT_PACKET_QUEUE_H
